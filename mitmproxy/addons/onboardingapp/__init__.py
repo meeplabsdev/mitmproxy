@@ -4,10 +4,14 @@ from flask import Flask
 from flask import render_template
 
 from mitmproxy import ctx
+from mitmproxy.options import CONF_DIR
 from mitmproxy.utils.magisk import write_magisk_module
 
+print(ctx)
+print(ctx.options)
+
 app = Flask(__name__)
-app.config["CONFDIR"] = ctx.options.confdir
+app.config["CONFDIR"] = CONF_DIR
 
 
 @app.route("/")
