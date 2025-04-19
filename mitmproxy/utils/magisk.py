@@ -7,7 +7,6 @@ from cryptography.hazmat.primitives import serialization
 
 from mitmproxy import certs
 from mitmproxy import ctx
-from mitmproxy.options import CONF_BASENAME
 
 # The following 3 variables are for including in the magisk module as text file
 MODULE_PROP_TEXT = """id=mitmproxycert
@@ -76,11 +75,9 @@ def get_ca_from_files() -> x509.Certificate:
     certstore_path = os.path.expanduser(ctx.options.confdir)
     certstore = certs.CertStore.from_store(
         path=certstore_path,
-        basename=CONF_BASENAME,
+        basename=ctx.options.ca_basename,
         key_size=ctx.options.key_size,
-        passphrase=ctx.options.cert_passphrase.encode("utf8")
-        if ctx.options.cert_passphrase
-        else None,
+        passphrase=ctx.options.cert_passphrase.encode("utf8") if ctx.options.cert_passphrase else None,
     )
     return certstore.default_ca._cert
 
@@ -104,9 +101,7 @@ def write_magisk_module(path: str):
         zipp.writestr("config.sh", CONFIG_SH_TEXT)
         zipp.writestr("META-INF/com/google/android/updater-script", "#MAGISK")
         zipp.writestr("META-INF/com/google/android/update-binary", UPDATE_BINARY_TEXT)
-        zipp.writestr(
-            "common/file_contexts_image", "/magisk(/.*)? u:object_r:system_file:s0"
-        )
+        zipp.writestr("common/file_contexts_image", "/magisk(/.*)? u:object_r:system_file:s0")
         zipp.writestr("common/post-fs-data.sh", "MODDIR=${0%/*}")
         zipp.writestr("common/service.sh", "MODDIR=${0%/*}")
         zipp.writestr("common/system.prop", "")
