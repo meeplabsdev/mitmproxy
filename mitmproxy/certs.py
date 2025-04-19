@@ -138,9 +138,7 @@ class Cert(serializable.Serializable):
     def is_ca(self) -> bool:
         constraints: x509.BasicConstraints
         try:
-            constraints = self._cert.extensions.get_extension_for_class(
-                x509.BasicConstraints
-            ).value
+            constraints = self._cert.extensions.get_extension_for_class(x509.BasicConstraints).value
             return constraints.ca
         except x509.ExtensionNotFound:
             return False
@@ -168,9 +166,7 @@ class Cert(serializable.Serializable):
 
     @property
     def organization(self) -> str | None:
-        attrs = self._cert.subject.get_attributes_for_oid(
-            x509.NameOID.ORGANIZATION_NAME
-        )
+        attrs = self._cert.subject.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
         if attrs:
             return cast(str, attrs[0].value)
         return None
@@ -181,9 +177,7 @@ class Cert(serializable.Serializable):
         Get all SubjectAlternativeName DNS altnames.
         """
         try:
-            sans = self._cert.extensions.get_extension_for_class(
-                x509.SubjectAlternativeName
-            ).value
+            sans = self._cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         except x509.ExtensionNotFound:
             return x509.GeneralNames([])
         else:
@@ -201,7 +195,7 @@ def _name_to_keyval(name: x509.Name) -> list[tuple[str, str]]:
 
 def create_ca(
     organization: str,
-    cn: str,
+    common_name: str,
     key_size: int,
 ) -> tuple[rsa.RSAPrivateKeyWithSerialization, x509.Certificate]:
     now = datetime.datetime.now()
@@ -212,7 +206,7 @@ def create_ca(
     )  # type: ignore
     name = x509.Name(
         [
-            x509.NameAttribute(NameOID.COMMON_NAME, cn),
+            x509.NameAttribute(NameOID.COMMON_NAME, common_name),
             x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization),
         ]
     )
@@ -223,12 +217,8 @@ def create_ca(
     builder = builder.not_valid_after(now + CA_EXPIRY)
     builder = builder.issuer_name(name)
     builder = builder.public_key(private_key.public_key())
-    builder = builder.add_extension(
-        x509.BasicConstraints(ca=True, path_length=None), critical=True
-    )
-    builder = builder.add_extension(
-        x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False
-    )
+    builder = builder.add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+    builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
     builder = builder.add_extension(
         x509.KeyUsage(
             digital_signature=False,
@@ -258,9 +248,7 @@ def _fix_legacy_sans(sans: Iterable[x509.GeneralName] | list[str]) -> x509.Gener
     """
     if isinstance(sans, x509.GeneralNames):
         return sans
-    elif (
-        isinstance(sans, list) and len(sans) > 0 and isinstance(sans[0], str)
-    ):  # pragma: no cover
+    elif isinstance(sans, list) and len(sans) > 0 and isinstance(sans[0], str):  # pragma: no cover
         warnings.warn(
             "Passing SANs as a list of strings is deprecated.",
             DeprecationWarning,
@@ -301,9 +289,7 @@ def dummy_cert(
     """
     builder = x509.CertificateBuilder()
     builder = builder.issuer_name(cacert.subject)
-    builder = builder.add_extension(
-        x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False
-    )
+    builder = builder.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
     builder = builder.public_key(cacert.public_key())
 
     now = datetime.datetime.now()
@@ -380,16 +366,7 @@ class CertStore:
         self.default_privatekey = default_privatekey
         self.default_ca = default_ca
         self.default_chain_file = default_chain_file
-        self.default_chain_certs = (
-            [
-                Cert(c)
-                for c in x509.load_pem_x509_certificates(
-                    self.default_chain_file.read_bytes()
-                )
-            ]
-            if self.default_chain_file
-            else [default_ca]
-        )
+        self.default_chain_certs = [Cert(c) for c in x509.load_pem_x509_certificates(self.default_chain_file.read_bytes())] if self.default_chain_file else [default_ca]
         self.dhparams = dhparams
         self.certs = {}
         self.expire_queue = []
@@ -430,19 +407,19 @@ class CertStore:
         path: Path | str,
         basename: str,
         key_size: int,
+        organization: Optional[str] = None,
+        common_name: Optional[str] = None,
         passphrase: bytes | None = None,
     ) -> "CertStore":
         path = Path(path)
         ca_file = path / f"{basename}-ca.pem"
         dhparam_file = path / f"{basename}-dhparam.pem"
         if not ca_file.exists():
-            cls.create_store(path, basename, key_size)
+            cls.create_store(path, basename, key_size, organization, common_name)
         return cls.from_files(ca_file, dhparam_file, passphrase)
 
     @classmethod
-    def from_files(
-        cls, ca_file: Path, dhparam_file: Path, passphrase: bytes | None = None
-    ) -> "CertStore":
+    def from_files(cls, ca_file: Path, dhparam_file: Path, passphrase: bytes | None = None) -> "CertStore":
         raw = ca_file.read_bytes()
         key = load_pem_private_key(raw, passphrase)
         dh = cls.load_dhparam(dhparam_file)
@@ -471,16 +448,20 @@ class CertStore:
 
     @staticmethod
     def create_store(
-        path: Path, basename: str, key_size: int, organization=None, cn=None
+        path: Path,
+        basename: str,
+        key_size: int,
+        organization: Optional[str] = None,
+        common_name: Optional[str] = None,
     ) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
         organization = organization or basename
-        cn = cn or basename
+        common_name = common_name or basename
 
         key: rsa.RSAPrivateKeyWithSerialization
         ca: x509.Certificate
-        key, ca = create_ca(organization=organization, cn=cn, key_size=key_size)
+        key, ca = create_ca(organization=organization, common_name=common_name, key_size=key_size)
 
         # Dump the CA plus private key.
         with CertStore.umask_secret():
@@ -524,9 +505,7 @@ class CertStore:
 
         (path / f"{basename}-dhparam.pem").write_bytes(DEFAULT_DHPARAM)
 
-    def add_cert_file(
-        self, spec: str, path: Path, passphrase: bytes | None = None
-    ) -> None:
+    def add_cert_file(self, spec: str, path: Path, passphrase: bytes | None = None) -> None:
         raw = path.read_bytes()
         cert = Cert.from_pem(raw)
         try:
@@ -534,16 +513,10 @@ class CertStore:
         except ValueError as e:
             private_key = self.default_privatekey
             if cert.public_key() != private_key.public_key():
-                raise ValueError(
-                    f'Unable to find private key in "{path.absolute()}": {e}'
-                ) from e
+                raise ValueError(f'Unable to find private key in "{path.absolute()}": {e}') from e
         else:
             if cert.public_key() != private_key.public_key():
-                raise ValueError(
-                    f'Private and public keys in "{path.absolute()}" do not match:\n'
-                    f"{cert.public_key()=}\n"
-                    f"{private_key.public_key()=}"
-                )
+                raise ValueError(f'Private and public keys in "{path.absolute()}" do not match:\n{cert.public_key()=}\n{private_key.public_key()=}')
 
         try:
             chain = [Cert(x) for x in x509.load_pem_x509_certificates(raw)]
@@ -552,10 +525,7 @@ class CertStore:
             chain = [cert]
 
         if cert.is_ca:
-            logger.warning(
-                f'"{path.absolute()}" is a certificate authority and not a leaf certificate. '
-                f"This indicates a misconfiguration, see https://docs.mitmproxy.org/stable/concepts-certificates/."
-            )
+            logger.warning(f'"{path.absolute()}" is a certificate authority and not a leaf certificate. This indicates a misconfiguration, see https://docs.mitmproxy.org/stable/concepts-certificates/.')
 
         self.add_cert(CertStoreEntry(cert, private_key, path, chain), spec)
 

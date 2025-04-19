@@ -3,18 +3,16 @@ import os
 from flask import Flask
 from flask import render_template
 
-from mitmproxy.options import CONF_BASENAME
-from mitmproxy.options import CONF_DIR
+from mitmproxy import ctx
 from mitmproxy.utils.magisk import write_magisk_module
 
 app = Flask(__name__)
-# will be overridden in the addon, setting this here so that the Flask app can be run standalone.
-app.config["CONFDIR"] = CONF_DIR
+app.config["CONFDIR"] = ctx.options.confdir
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", ca_basename=ctx.options.ca_basename)
 
 
 @app.route("/cert/pem")
@@ -34,8 +32,8 @@ def cer():
 
 @app.route("/cert/magisk")
 def magisk():
-    filename = CONF_BASENAME + f"-magisk-module.zip"
-    p = os.path.join(app.config["CONFDIR"], filename)
+    filename = ctx.options.ca_basename + f"-magisk-module.zip"
+    p = os.path.join(ctx.options.confdir, filename)
     p = os.path.expanduser(p)
 
     if not os.path.exists(p):
@@ -51,8 +49,8 @@ def magisk():
 
 
 def read_cert(ext, content_type):
-    filename = CONF_BASENAME + f"-ca-cert.{ext}"
-    p = os.path.join(app.config["CONFDIR"], filename)
+    filename = ctx.options.ca_basename + f"-ca-cert.{ext}"
+    p = os.path.join(ctx.options.confdir, filename)
     p = os.path.expanduser(p)
     with open(p, "rb") as f:
         cert = f.read()

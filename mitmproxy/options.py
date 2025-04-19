@@ -4,7 +4,6 @@ from typing import Optional
 from mitmproxy import optmanager
 
 CONF_DIR = "~/.mitmproxy"
-CONF_BASENAME = "mitmproxy"
 CONTENT_VIEW_LINES_CUTOFF = 512
 KEY_SIZE = 2048
 
@@ -12,9 +11,7 @@ KEY_SIZE = 2048
 class Options(optmanager.OptManager):
     def __init__(self, **kwargs) -> None:
         super().__init__()
-        self.add_option(
-            "server", bool, True, "Start a proxy server. Enabled by default."
-        )
+        self.add_option("server", bool, True, "Start a proxy server. Enabled by default.")
         self.add_option(
             "showhost",
             bool,
@@ -46,6 +43,24 @@ class Options(optmanager.OptManager):
             """,
         )
         self.add_option(
+            "ca_basename",
+            str,
+            "mitmproxy",
+            "Basename (prefix) of the certificate files.",
+        )
+        self.add_option(
+            "ca_organization",
+            str,
+            "mitmproxy",
+            'Organization of the generated certificate authority. Will always include "mitmproxy"',
+        )
+        self.add_option(
+            "ca_common_name",
+            str,
+            "mitmproxy",
+            "Common name of the generated certificate authority.",
+        )
+        self.add_option(
             "confdir",
             str,
             CONF_DIR,
@@ -75,9 +90,7 @@ class Options(optmanager.OptManager):
             process list. Specify it in config.yaml to avoid this.
             """,
         )
-        self.add_option(
-            "client_certs", Optional[str], None, "Client certificate file or directory."
-        )
+        self.add_option("client_certs", Optional[str], None, "Client certificate file or directory.")
         self.add_option(
             "ignore_hosts",
             Sequence[str],
@@ -101,8 +114,7 @@ class Options(optmanager.OptManager):
             "listen_port",
             Optional[int],
             None,
-            "Port to bind proxy server(s) to (may be overridden for individual modes, see `mode`). "
-            "By default, the port is mode-specific. The default regular HTTP proxy spawns on port 8080.",
+            "Port to bind proxy server(s) to (may be overridden for individual modes, see `mode`). By default, the port is mode-specific. The default regular HTTP proxy spawns on port 8080.",
         )
         self.add_option(
             "mode",
@@ -160,15 +172,13 @@ class Options(optmanager.OptManager):
             "websocket",
             bool,
             True,
-            "Enable/disable WebSocket support. "
-            "WebSocket support is enabled by default.",
+            "Enable/disable WebSocket support. WebSocket support is enabled by default.",
         )
         self.add_option(
             "rawtcp",
             bool,
             True,
-            "Enable/disable raw TCP connections. "
-            "TCP connections are enabled by default. ",
+            "Enable/disable raw TCP connections. TCP connections are enabled by default. ",
         )
         self.add_option(
             "ssl_insecure",

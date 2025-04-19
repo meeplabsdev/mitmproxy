@@ -19,7 +19,6 @@ from mitmproxy import ctx
 from mitmproxy import exceptions
 from mitmproxy import tls
 from mitmproxy.net import tls as net_tls
-from mitmproxy.options import CONF_BASENAME
 from mitmproxy.proxy import context
 from mitmproxy.proxy.layers import modes
 from mitmproxy.proxy.layers import quic
@@ -133,17 +132,13 @@ class TlsConfig:
     #  - ssl_verify_upstream_trusted_confdir
 
     def load(self, loader):
-        insecure_tls_min_versions = (
-            ", ".join(x.name for x in net_tls.INSECURE_TLS_MIN_VERSIONS[:-1])
-            + f" and {net_tls.INSECURE_TLS_MIN_VERSIONS[-1].name}"
-        )
+        insecure_tls_min_versions = ", ".join(x.name for x in net_tls.INSECURE_TLS_MIN_VERSIONS[:-1]) + f" and {net_tls.INSECURE_TLS_MIN_VERSIONS[-1].name}"
         loader.add_option(
             name="tls_version_client_min",
             typespec=str,
             default=net_tls.DEFAULT_MIN_VERSION.name,
             choices=[x.name for x in net_tls.Version],
-            help=f"Set the minimum TLS version for client connections. "
-            f"{insecure_tls_min_versions} are insecure.",
+            help=f"Set the minimum TLS version for client connections. {insecure_tls_min_versions} are insecure.",
         )
         loader.add_option(
             name="tls_version_client_max",
@@ -157,8 +152,7 @@ class TlsConfig:
             typespec=str,
             default=net_tls.DEFAULT_MIN_VERSION.name,
             choices=[x.name for x in net_tls.Version],
-            help=f"Set the minimum TLS version for server connections. "
-            f"{insecure_tls_min_versions} are insecure.",
+            help=f"Set the minimum TLS version for server connections. {insecure_tls_min_versions} are insecure.",
         )
         loader.add_option(
             name="tls_version_server_max",
@@ -171,15 +165,13 @@ class TlsConfig:
             name="tls_ecdh_curve_client",
             typespec=str | None,
             default=None,
-            help="Use a specific elliptic curve for ECDHE key exchange on client connections. "
-            'OpenSSL syntax, for example "prime256v1" (see `openssl ecparam -list_curves`).',
+            help='Use a specific elliptic curve for ECDHE key exchange on client connections. OpenSSL syntax, for example "prime256v1" (see `openssl ecparam -list_curves`).',
         )
         loader.add_option(
             name="tls_ecdh_curve_server",
             typespec=str | None,
             default=None,
-            help="Use a specific elliptic curve for ECDHE key exchange on server connections. "
-            'OpenSSL syntax, for example "prime256v1" (see `openssl ecparam -list_curves`).',
+            help='Use a specific elliptic curve for ECDHE key exchange on server connections. OpenSSL syntax, for example "prime256v1" (see `openssl ecparam -list_curves`).',
         )
         loader.add_option(
             name="request_client_cert",
@@ -202,9 +194,7 @@ class TlsConfig:
 
     def tls_clienthello(self, tls_clienthello: tls.ClientHelloData):
         conn_context = tls_clienthello.context
-        tls_clienthello.establish_server_tls_first = (
-            conn_context.server.tls and ctx.options.connection_strategy == "eager"
-        )
+        tls_clienthello.establish_server_tls_first = conn_context.server.tls and ctx.options.connection_strategy == "eager"
 
     def tls_start_client(self, tls_start: tls.TlsData) -> None:
         """Establish TLS or DTLS between client and proxy."""
@@ -221,9 +211,7 @@ class TlsConfig:
         if not client.cipher_list and ctx.options.ciphers_client:
             client.cipher_list = ctx.options.ciphers_client.split(":")
         # don't assign to client.cipher_list, doesn't need to be stored.
-        cipher_list = client.cipher_list or _default_ciphers(
-            net_tls.Version[ctx.options.tls_version_client_min]
-        )
+        cipher_list = client.cipher_list or _default_ciphers(net_tls.Version[ctx.options.tls_version_client_min])
 
         if ctx.options.add_upstream_certs_to_client_chain:  # pragma: no cover
             # exempted from coverage until https://bugs.python.org/issue18233 is fixed.
@@ -232,9 +220,7 @@ class TlsConfig:
             extra_chain_certs = []
 
         ssl_ctx = net_tls.create_client_proxy_context(
-            method=net_tls.Method.DTLS_SERVER_METHOD
-            if tls_start.is_dtls
-            else net_tls.Method.TLS_SERVER_METHOD,
+            method=net_tls.Method.DTLS_SERVER_METHOD if tls_start.is_dtls else net_tls.Method.TLS_SERVER_METHOD,
             min_version=net_tls.Version[ctx.options.tls_version_client_min],
             max_version=net_tls.Version[ctx.options.tls_version_client_max],
             cipher_list=tuple(cipher_list),
@@ -248,16 +234,12 @@ class TlsConfig:
         tls_start.ssl_conn = SSL.Connection(ssl_ctx)
 
         tls_start.ssl_conn.use_certificate(entry.cert.to_pyopenssl())
-        tls_start.ssl_conn.use_privatekey(
-            crypto.PKey.from_cryptography_key(entry.privatekey)
-        )
+        tls_start.ssl_conn.use_privatekey(crypto.PKey.from_cryptography_key(entry.privatekey))
 
         # Force HTTP/1 for secure web proxies, we currently don't support CONNECT over HTTP/2.
         # There is a proof-of-concept branch at https://github.com/mhils/mitmproxy/tree/http2-proxy,
         # but the complexity outweighs the benefits for now.
-        if len(tls_start.context.layers) == 2 and isinstance(
-            tls_start.context.layers[0], modes.HttpProxy
-        ):
+        if len(tls_start.context.layers) == 2 and isinstance(tls_start.context.layers[0], modes.HttpProxy):
             client_alpn: bytes | None = b"http/1.1"
         else:
             client_alpn = client.alpn
@@ -299,9 +281,7 @@ class TlsConfig:
                     # accurately, for example header capitalization.
                     server.alpn_offers = tuple(client.alpn_offers)
                 else:
-                    server.alpn_offers = tuple(
-                        x for x in client.alpn_offers if x != b"h2"
-                    )
+                    server.alpn_offers = tuple(x for x in client.alpn_offers if x != b"h2")
             else:
                 # We either have no client TLS or a client without ALPN.
                 # - If the client does use TLS but did not send an ALPN extension, we want to mirror that upstream.
@@ -313,9 +293,7 @@ class TlsConfig:
         if not server.cipher_list and ctx.options.ciphers_server:
             server.cipher_list = ctx.options.ciphers_server.split(":")
         # don't assign to client.cipher_list, doesn't need to be stored.
-        cipher_list = server.cipher_list or _default_ciphers(
-            net_tls.Version[ctx.options.tls_version_server_min]
-        )
+        cipher_list = server.cipher_list or _default_ciphers(net_tls.Version[ctx.options.tls_version_server_min])
 
         client_cert: str | None = None
         if ctx.options.client_certs:
@@ -329,9 +307,7 @@ class TlsConfig:
                     client_cert = p
 
         ssl_ctx = net_tls.create_proxy_server_context(
-            method=net_tls.Method.DTLS_CLIENT_METHOD
-            if tls_start.is_dtls
-            else net_tls.Method.TLS_CLIENT_METHOD,
+            method=net_tls.Method.DTLS_CLIENT_METHOD if tls_start.is_dtls else net_tls.Method.TLS_CLIENT_METHOD,
             min_version=net_tls.Version[ctx.options.tls_version_server_min],
             max_version=net_tls.Version[ctx.options.tls_version_server_max],
             cipher_list=tuple(cipher_list),
@@ -401,22 +377,14 @@ class TlsConfig:
 
         # set context parameters
         if client.cipher_list:
-            tls_start.settings.cipher_suites = [
-                CipherSuite[cipher] for cipher in client.cipher_list
-            ]
+            tls_start.settings.cipher_suites = [CipherSuite[cipher] for cipher in client.cipher_list]
         # if we don't have upstream ALPN, we allow all offered by the client
-        tls_start.settings.alpn_protocols = [
-            alpn.decode("ascii")
-            for alpn in [alpn for alpn in (client.alpn, server.alpn) if alpn]
-            or client.alpn_offers
-        ]
+        tls_start.settings.alpn_protocols = [alpn.decode("ascii") for alpn in [alpn for alpn in (client.alpn, server.alpn) if alpn] or client.alpn_offers]
 
         # set the certificates
         tls_start.settings.certificate = entry.cert._cert
         tls_start.settings.certificate_private_key = entry.privatekey
-        tls_start.settings.certificate_chain = [
-            cert._cert for cert in (*entry.chain_certs, *extra_chain_certs)
-        ]
+        tls_start.settings.certificate_chain = [cert._cert for cert in (*entry.chain_certs, *extra_chain_certs)]
 
     def quic_start_server(self, tls_start: quic.QuicTlsData) -> None:
         """Establish QUIC between proxy and server."""
@@ -451,13 +419,9 @@ class TlsConfig:
 
         # set context parameters
         if server.cipher_list:
-            tls_start.settings.cipher_suites = [
-                CipherSuite[cipher] for cipher in server.cipher_list
-            ]
+            tls_start.settings.cipher_suites = [CipherSuite[cipher] for cipher in server.cipher_list]
         if server.alpn_offers:
-            tls_start.settings.alpn_protocols = [
-                alpn.decode("ascii") for alpn in server.alpn_offers
-            ]
+            tls_start.settings.alpn_protocols = [alpn.decode("ascii") for alpn in server.alpn_offers]
 
         # set the certificates
         # NOTE client certificates are not supported
@@ -470,20 +434,15 @@ class TlsConfig:
         self.configure("confdir")  # pragma: no cover
 
     def configure(self, updated):
-        if (
-            "certs" in updated
-            or "confdir" in updated
-            or "key_size" in updated
-            or "cert_passphrase" in updated
-        ):
+        if "certs" in updated or "confdir" in updated or "key_size" in updated or "cert_passphrase" in updated:
             certstore_path = os.path.expanduser(ctx.options.confdir)
             self.certstore = certs.CertStore.from_store(
                 path=certstore_path,
-                basename=CONF_BASENAME,
+                basename=ctx.options.ca_basename,
+                organization=ctx.options.ca_organization,
+                common_name=ctx.options.ca_common_name,
                 key_size=ctx.options.key_size,
-                passphrase=ctx.options.cert_passphrase.encode("utf8")
-                if ctx.options.cert_passphrase
-                else None,
+                passphrase=ctx.options.cert_passphrase.encode("utf8") if ctx.options.cert_passphrase else None,
             )
             if self.certstore.default_ca.has_expired():
                 logger.warning(
@@ -500,21 +459,15 @@ class TlsConfig:
 
                 cert = Path(parts[1]).expanduser()
                 if not cert.exists():
-                    raise exceptions.OptionsError(
-                        f"Certificate file does not exist: {cert}"
-                    )
+                    raise exceptions.OptionsError(f"Certificate file does not exist: {cert}")
                 try:
                     self.certstore.add_cert_file(
                         parts[0],
                         cert,
-                        passphrase=ctx.options.cert_passphrase.encode("utf8")
-                        if ctx.options.cert_passphrase
-                        else None,
+                        passphrase=ctx.options.cert_passphrase.encode("utf8") if ctx.options.cert_passphrase else None,
                     )
                 except ValueError as e:
-                    raise exceptions.OptionsError(
-                        f"Invalid certificate format for {cert}: {e}"
-                    ) from e
+                    raise exceptions.OptionsError(f"Invalid certificate format for {cert}: {e}") from e
 
         if "tls_ecdh_curve_client" in updated or "tls_ecdh_curve_server" in updated:
             for ecdh_curve in [
@@ -525,9 +478,7 @@ class TlsConfig:
                     try:
                         crypto.get_elliptic_curve(ecdh_curve)
                     except Exception as e:
-                        raise exceptions.OptionsError(
-                            f"Invalid ECDH curve: {ecdh_curve!r}"
-                        ) from e
+                        raise exceptions.OptionsError(f"Invalid ECDH curve: {ecdh_curve!r}") from e
 
         if "tls_version_client_min" in updated:
             self._warn_unsupported_version("tls_version_client_min", True)
@@ -544,22 +495,14 @@ class TlsConfig:
 
     def _warn_unsupported_version(self, attribute: str, warn_unbound: bool):
         val = net_tls.Version[getattr(ctx.options, attribute)]
-        supported_versions = [
-            v for v in net_tls.Version if net_tls.is_supported_version(v)
-        ]
+        supported_versions = [v for v in net_tls.Version if net_tls.is_supported_version(v)]
         supported_versions_str = ", ".join(v.name for v in supported_versions)
 
         if val is net_tls.Version.UNBOUNDED:
             if warn_unbound:
-                logger.info(
-                    f"{attribute} has been set to {val.name}. Note that your "
-                    f"OpenSSL build only supports the following TLS versions: {supported_versions_str}"
-                )
+                logger.info(f"{attribute} has been set to {val.name}. Note that your OpenSSL build only supports the following TLS versions: {supported_versions_str}")
         elif val not in supported_versions:
-            logger.warning(
-                f"{attribute} has been set to {val.name}, which is not supported by the current OpenSSL build. "
-                f"The current build only supports the following versions: {supported_versions_str}"
-            )
+            logger.warning(f"{attribute} has been set to {val.name}, which is not supported by the current OpenSSL build. The current build only supports the following versions: {supported_versions_str}")
 
     def _warn_seclevel_missing(self, side: Literal["client", "server"]) -> None:
         """
@@ -573,15 +516,8 @@ class TlsConfig:
             custom_ciphers = ctx.options.ciphers_server
             min_tls_version = ctx.options.tls_version_server_min
 
-        if (
-            custom_ciphers
-            and net_tls.Version[min_tls_version] in net_tls.INSECURE_TLS_MIN_VERSIONS
-            and "@SECLEVEL=0" not in custom_ciphers
-        ):
-            logger.warning(
-                f'With tls_version_{side}_min set to {min_tls_version}, ciphers_{side} must include "@SECLEVEL=0" '
-                f"for insecure TLS versions to work."
-            )
+        if custom_ciphers and net_tls.Version[min_tls_version] in net_tls.INSECURE_TLS_MIN_VERSIONS and "@SECLEVEL=0" not in custom_ciphers:
+            logger.warning(f'With tls_version_{side}_min set to {min_tls_version}, ciphers_{side} must include "@SECLEVEL=0" for insecure TLS versions to work.')
 
     def get_cert(self, conn_context: context.Context) -> certs.CertStoreEntry:
         """
