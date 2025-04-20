@@ -15,6 +15,7 @@ RUN mkdir /home/mitmproxy/.mitmproxy \
 
 COPY --from=wheelbuilder /wheels /wheels
 RUN pip install --no-index --find-links=/wheels mitmproxy
+RUN pip install urwid==2.6.14
 RUN rm -rf /wheels
 
 VOLUME /home/mitmproxy/.mitmproxy
