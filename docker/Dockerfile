@@ -19,8 +19,9 @@ RUN rm -rf /wheels
 
 VOLUME /home/mitmproxy/.mitmproxy
 
-COPY docker-entrypoint.sh /usr/local/bin/
-ENTRYPOINT ["docker-entrypoint.sh"]
+COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+RUN chmod +x /usr/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
 
 EXPOSE 8080 8081
 
